@@ -1,5 +1,5 @@
 
-name: Build Digital Shop iOS
+name: Build Digital Shop IPA
 
 on:
   workflow_dispatch:
@@ -19,31 +19,38 @@ jobs:
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           xcodebuild -version
 
-      - name: Build for iOS Simulator
+      - name: Build for iPhone
         run: |
           xcodebuild \
             -project DigitalShop.xcodeproj \
             -scheme DigitalShop \
-            -sdk iphonesimulator \
-            -configuration Debug \
+            -configuration Release \
+            -sdk iphoneos \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
             build
 
-      - name: Verify built app
+      - name: Package Unsigned IPA
         run: |
-          APP_PATH="build/Build/Products/Debug-iphonesimulator/DigitalShop.app"
+          APP_PATH="build/Build/Products/Release-iphoneos/DigitalShop.app"
+
           if [ ! -d "$APP_PATH" ]; then
-            echo "Error: DigitalShop.app was not found."
+            echo "DigitalShop.app was not found."
             find build/Build/Products -maxdepth 4 -name "*.app" -print || true
             exit 1
           fi
-          echo "App found at: $APP_PATH"
 
-      - name: Upload iOS Simulator App
+          mkdir -p ipa/Payload
+          cp -R "$APP_PATH" ipa/Payload/DigitalShop.app
+
+          cd ipa
+          zip -qry ../DigitalShop-unsigned.ipa Payload
+
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: DigitalShop-iOS-Simulator-Build
-          path: build/Build/Products/Debug-iphonesimulator/DigitalShop.app
+          name: DigitalShop-Unsigned-IPA
+          path: DigitalShop-unsigned.ipa
           if-no-files-found: error
           retention-days: 7
