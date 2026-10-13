@@ -6,6 +6,9 @@ on:
   push:
     branches: [main, master]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: macos-latest
@@ -19,8 +22,10 @@ jobs:
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           xcodebuild -version
 
-      - name: Build for iPhone
+      - name: Build Unsigned iPhone App
         run: |
+          set -e
+
           xcodebuild \
             -project DigitalShop.xcodeproj \
             -scheme DigitalShop \
@@ -29,25 +34,61 @@ jobs:
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
             build
 
-      - name: Package Unsigned IPA
+      - name: Verify App Bundle
         run: |
+          set -e
+
           APP_PATH="build/Build/Products/Release-iphoneos/DigitalShop.app"
 
           if [ ! -d "$APP_PATH" ]; then
-            echo "DigitalShop.app was not found."
-            find build/Build/Products -maxdepth 4 -name "*.app" -print || true
+            echo "ERROR: DigitalShop.app was not found"
+            find build/Build/Products -name "*.app" -print || true
             exit 1
           fi
+
+          echo "Checking Info.plist..."
+          plutil -lint "$APP_PATH/Info.plist"
+
+          echo "Bundle Identifier:"
+          /usr/libexec/PlistBuddy \
+            -c "Print :CFBundleIdentifier" \
+            "$APP_PATH/Info.plist"
+
+          echo "Executable:"
+          /usr/libexec/PlistBuddy \
+            -c "Print :CFBundleExecutable" \
+            "$APP_PATH/Info.plist"
+
+          echo "Checking executable file..."
+          EXECUTABLE=$(/usr/libexec/PlistBuddy \
+            -c "Print :CFBundleExecutable" \
+            "$APP_PATH/Info.plist")
+
+          test -f "$APP_PATH/$EXECUTABLE"
+          file "$APP_PATH/$EXECUTABLE"
+          lipo -info "$APP_PATH/$EXECUTABLE"
+
+      - name: Package Unsigned IPA
+        run: |
+          set -e
+
+          APP_PATH="build/Build/Products/Release-iphoneos/DigitalShop.app"
 
           mkdir -p ipa/Payload
           cp -R "$APP_PATH" ipa/Payload/DigitalShop.app
 
           cd ipa
           zip -qry ../DigitalShop-unsigned.ipa Payload
+          cd ..
 
-      - name: Upload IPA
+          echo "Checking IPA archive..."
+          unzip -t DigitalShop-unsigned.ipa
+          unzip -l DigitalShop-unsigned.ipa | head -40
+
+      - name: Upload Unsigned IPA
         uses: actions/upload-artifact@v4
         with:
           name: DigitalShop-Unsigned-IPA
