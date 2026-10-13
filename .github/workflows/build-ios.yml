@@ -26,5 +26,24 @@ jobs:
             -scheme DigitalShop \
             -sdk iphonesimulator \
             -configuration Debug \
+            -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+      - name: Verify built app
+        run: |
+          APP_PATH="build/Build/Products/Debug-iphonesimulator/DigitalShop.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Error: DigitalShop.app was not found."
+            find build/Build/Products -maxdepth 4 -name "*.app" -print || true
+            exit 1
+          fi
+          echo "App found at: $APP_PATH"
+
+      - name: Upload iOS Simulator App
+        uses: actions/upload-artifact@v4
+        with:
+          name: DigitalShop-iOS-Simulator-Build
+          path: build/Build/Products/Debug-iphonesimulator/DigitalShop.app
+          if-no-files-found: error
+          retention-days: 7
