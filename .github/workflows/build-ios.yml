@@ -1,0 +1,30 @@
+
+name: Build Digital Shop iOS
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Build for iOS Simulator
+        run: |
+          xcodebuild \
+            -project DigitalShop.xcodeproj \
+            -scheme DigitalShop \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            build
