@@ -29,11 +29,16 @@ struct RootView: View {
             }
         }
         .tint(.blue)
-        .alert("Digital Shop", isPresented: Binding(
-            get: { !message.isEmpty },
-            set: { if !$0 { message = "" } }
-        )) {
-            Button("OK") { message = "" }
+        .alert(
+            "Digital Shop",
+            isPresented: Binding(
+                get: { !message.isEmpty },
+                set: { if !$0 { message = "" } }
+            )
+        ) {
+            Button("OK") {
+                message = ""
+            }
         } message: {
             Text(message)
         }
@@ -46,6 +51,7 @@ struct RootView: View {
                     if isRegistering {
                         TextField("Username", text: $username)
                             .textInputAutocapitalization(.never)
+
                         TextField("Email", text: $email)
                             .keyboardType(.emailAddress)
                             .textInputAutocapitalization(.never)
@@ -56,14 +62,21 @@ struct RootView: View {
 
                     SecureField("Password", text: $password)
 
-                    Button(busy ? "Please wait…" :
-                           (isRegistering ? "Create Account" : "Sign In")) {
-                        Task { await authenticate() }
+                    Button(
+                        busy ? "Please wait…" :
+                            (isRegistering ? "Create Account" : "Sign In")
+                    ) {
+                        Task {
+                            await authenticate()
+                        }
                     }
                     .disabled(busy)
 
-                    Button(isRegistering ? "Already registered? Sign In" :
-                           "Create an account") {
+                    Button(
+                        isRegistering
+                            ? "Already registered? Sign In"
+                            : "Create an account"
+                    ) {
                         isRegistering.toggle()
                     }
                 }
@@ -77,32 +90,44 @@ struct RootView: View {
             NavigationStack {
                 productScreen
             }
-            .tabItem { Label("Shop", systemImage: "bag") }
+            .tabItem {
+                Label("Shop", systemImage: "bag")
+            }
             .tag(0)
 
             NavigationStack {
                 orderScreen
             }
-            .tabItem { Label("My Orders", systemImage: "list.clipboard") }
+            .tabItem {
+                Label("My Orders", systemImage: "list.clipboard")
+            }
             .tag(1)
 
             NavigationStack {
                 accountScreen
             }
-            .tabItem { Label("Account", systemImage: "person") }
+            .tabItem {
+                Label("Account", systemImage: "person")
+            }
             .tag(2)
         }
-        .task { await refreshAll() }
+        .task {
+            await refreshAll()
+        }
     }
 
     private var productScreen: some View {
         List(products) { product in
             VStack(alignment: .leading, spacing: 8) {
-                Text(product.name).font(.headline)
+                Text(product.name)
+                    .font(.headline)
+
                 if let description = product.description {
-                    Text(description).font(.subheadline)
+                    Text(description)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
+
                 Text(product.price, format: .currency(code: "USD"))
                     .fontWeight(.semibold)
 
@@ -126,7 +151,9 @@ struct RootView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    Task { await loadProducts() }
+                    Task {
+                        await loadProducts()
+                    }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
@@ -137,11 +164,22 @@ struct RootView: View {
     private var orderScreen: some View {
         List {
             if orders.isEmpty {
-                ContentUnavailableView(
-                    "No Orders Yet",
-                    systemImage: "shippingbox",
-                    description: Text("Your orders will appear here.")
-                )
+                VStack(spacing: 12) {
+                    Image(systemName: "shippingbox")
+                        .font(.system(size: 38))
+                        .foregroundStyle(.secondary)
+
+                    Text("No Orders Yet")
+                        .font(.headline)
+
+                    Text("Your orders will appear here.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+                .listRowSeparator(.hidden)
             }
 
             ForEach(orders) { order in
@@ -179,7 +217,9 @@ struct RootView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
-                    Task { await loadOrders() }
+                    Task {
+                        await loadOrders()
+                    }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
@@ -218,7 +258,9 @@ struct RootView: View {
                     }
 
                     Button(busy ? "Uploading…" : "Submit Proof") {
-                        Task { await submitProof(order: order) }
+                        Task {
+                            await submitProof(order: order)
+                        }
                     }
                     .disabled(
                         busy ||
@@ -242,6 +284,7 @@ struct RootView: View {
             }
             .task(id: selectedPhoto) {
                 guard let selectedPhoto else { return }
+
                 if let data = try? await selectedPhoto.loadTransferable(
                     type: Data.self
                 ), let image = UIImage(data: data) {
@@ -255,6 +298,7 @@ struct RootView: View {
         Form {
             Section("Account") {
                 Text("Signed in")
+
                 Button("Sign Out", role: .destructive) {
                     APIClient.shared.logout()
                     loggedIn = false
@@ -278,6 +322,7 @@ struct RootView: View {
                     email: email,
                     password: password
                 )
+
                 message = "Registration submitted. Sign in when your account is ready."
                 isRegistering = false
             } else {
@@ -285,6 +330,7 @@ struct RootView: View {
                     identifier: identifier,
                     password: password
                 )
+
                 loggedIn = true
                 await refreshAll()
             }
@@ -320,6 +366,7 @@ struct RootView: View {
     @MainActor
     private func submitProof(order: APIOrder) async {
         guard let proofImage else { return }
+
         busy = true
         defer { busy = false }
 
@@ -329,11 +376,13 @@ struct RootView: View {
                 transactionReference: transactionReference,
                 image: proofImage
             )
+
             message = "Upload completed. Refresh My Orders to check the review status."
             selectedOrder = nil
             self.proofImage = nil
             selectedPhoto = nil
             transactionReference = ""
+
             await loadOrders()
         } catch {
             message = error.localizedDescription
